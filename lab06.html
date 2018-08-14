@@ -1,0 +1,524 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>COSC346 Week 6 - Memory management</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   	<link rel="stylesheet" type="text/css" href="http://www.cs.otago.ac.nz/cosc346/labs/phplabbook/labbookswift.css">
+	<link rel="stylesheet" type="text/css" href="http://www.cs.otago.ac.nz/cosc346/labs/cosc346labstyle.css">
+	<script src="http://www.cs.otago.ac.nz/cosc346/labs/jquery-1.11.1.min.js"></script>
+	<script src="http://www.cs.otago.ac.nz/cosc346/labs/toc.min.js"></script>
+	<script src="http://www.cs.otago.ac.nz/cosc346/labs/cosc346labscript.js"></script>
+</head>
+<body>
+
+	<!-- Banner -->
+	<div class="banner">
+		<a href="http://www.cs.otago.ac.nz/cosc346/labs.php">COSC346 - Object Oriented Programming and User Interfaces</a>
+	</div>
+		
+	<!-- Lab title -->		
+	<h1>Week 6 - Memory management</h1>
+	
+	<!-- Table of Contents -->
+	<div id="toc"></div>
+		
+		
+	<h2>Goals</h2>
+	<div class="block">
+		<ul class="toplist">
+			<li>To learn how to use initialisers and deinitialisers to keep track of the lifespan of an object</li>
+			<li>To practice finding and fixing memory leaks in a complex program</li>
+		</ul>
+	</div>
+		
+		
+	<h2>Preparation</h2>
+	<div class="block">
+	<ul class="toplist">
+		<li>From Apple's "The Swift Programming Language" read:
+		<ul>
+			<li><a href="https://docs.swift.org/swift-book/LanguageGuide/AutomaticReferenceCounting.html">Automatic Reference Counting</a></li>
+		</ul></li>
+	</ul>
+	</div>
+
+	<h2>Init and deinit</h2>
+	<div class="block">
+		
+		<p>
+		Apple's documentation provides a great example explaining what <a href="https://docs.swift.org/swift-book/LanguageGuide/AutomaticReferenceCounting.html">strong and weak references</a> are all about.  In this lab you will implement this example and verify that Automatic Reference Counting (ARC) works as advertised. 
+		</p>
+	
+		<h3>Retain cycle</h3>
+		
+		<p>
+		Create a new Xcode project, name it <em>prog6.1</em>.  Implement the <em><span class="swiftcode"><span class="swiftdefined">Apartment</span></span></em> and  <em><span class="swiftcode"><span class="swiftdefined">Person</span></span></em> classes as given below:
+		</p>
+		
+		<div class="codeblock">
+<div class="codeblocktitle"><a href="code/01/Apartment.swift">Apartment.swift</a></div>
+<pre class="linenumbers unselectable" style="float: left;">01:
+02:
+03:
+04:
+05:
+06:
+07:
+08:
+09:
+10:
+11:
+12:
+13:
+14:
+15:
+16:
+17:
+18:
+19:
+20:
+21:
+22:
+23:
+24:
+25:
+26:
+27:
+28:
+29:
+</pre><pre class="code">
+<span class="swiftcode"><span class="swiftkeyword">import</span> Foundation</span>
+<span class="swiftcode"></span>
+<span class="swiftcode"><span class="swiftcomment">/**</span></span>
+<span class="swiftcode"><span class="swiftcomment">Class representing an apartment  Inherits from</span></span>
+<span class="swiftcode"><span class="swiftcomment">RetainTracker, so that retain count of Apartment objects</span></span>
+<span class="swiftcode"><span class="swiftcomment">can be seen.</span></span>
+<span class="swiftcode"><span class="swiftcomment">*/</span></span>
+<span class="swiftcode"><span class="swiftkeyword">class</span> <span class="swiftdefined">Apartment</span> : <span class="swiftclass">CustomStringConvertible</span>  {</span>
+<span class="swiftcode">    <span class="swiftcomment">// Apartment number</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">let</span> number: <span class="swiftclass">Int</span></span>
+<span class="swiftcode">    <span class="swiftcomment">// Apartment's tenant (optional)</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">var</span> tenant: <span class="swiftdefined">Person</span>?</span>
+<span class="swiftcode">    </span>
+<span class="swiftcode">    <span class="swiftcomment">/**</span></span>
+<span class="swiftcode"><span class="swiftcomment">    String description</span></span>
+<span class="swiftcode"><span class="swiftcomment">    */</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">var</span> description: <span class="swiftclass">String</span> {</span>
+<span class="swiftcode">        <span class="swiftkeyword">return</span>(<span class="swiftstring">"Apartment </span></span><span class="codeswift">\<span class="swiftstring">(</span>number<span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring">"</span>)</span>
+<span class="swiftcode">    }</span>
+<span class="swiftcode">    </span>
+<span class="swiftcode">    <span class="swiftcomment">/**</span></span>
+<span class="swiftcode"><span class="swiftcomment">    Designated initialiser</span></span>
+<span class="swiftcode"><span class="swiftcomment">    </span></span>
+<span class="swiftcode"><span class="swiftcomment">    - parameter number: Apartment number</span></span>
+<span class="swiftcode"><span class="swiftcomment">    */</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">init</span>(number: <span class="swiftclass">Int</span>) {</span>
+<span class="swiftcode">        <span class="swiftkeyword">self</span>.number = number</span>
+<span class="swiftcode">    }</span>
+<span class="swiftcode">}</span>
+</pre>
+</div>
+
+		<div class="codeblock">
+<div class="codeblocktitle"><a href="code/01/Person.swift">Person.swift</a></div>
+<pre class="linenumbers unselectable" style="float: left;">01:
+02:
+03:
+04:
+05:
+06:
+07:
+08:
+09:
+10:
+11:
+12:
+13:
+14:
+15:
+16:
+17:
+18:
+19:
+20:
+21:
+22:
+23:
+24:
+25:
+26:
+27:
+28:
+29:
+</pre><pre class="code">
+<span class="swiftcode"><span class="swiftkeyword">import</span> Foundation</span>
+<span class="swiftcode"></span>
+<span class="swiftcode"><span class="swiftcomment">/**</span></span>
+<span class="swiftcode"><span class="swiftcomment">Class representing a person.  Inherits from</span></span>
+<span class="swiftcode"><span class="swiftcomment">RetainTracker, so that retain count of Person objects</span></span>
+<span class="swiftcode"><span class="swiftcomment">can be seen.</span></span>
+<span class="swiftcode"><span class="swiftcomment">*/</span></span>
+<span class="swiftcode"><span class="swiftkeyword">class</span> <span class="swiftdefined">Person</span> : <span class="swiftclass">CustomStringConvertible</span> {</span>
+<span class="swiftcode">    <span class="swiftcomment">// Name of the person</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">let</span> name: <span class="swiftclass">String</span></span>
+<span class="swiftcode">    <span class="swiftcomment">// Optional apartment (where the person lives)</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">var</span> apartment: <span class="swiftdefined">Apartment</span>?</span>
+<span class="swiftcode">    </span>
+<span class="swiftcode">    <span class="swiftcomment">/**</span></span>
+<span class="swiftcode"><span class="swiftcomment">    String description</span></span>
+<span class="swiftcode"><span class="swiftcomment">    */</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">var</span> description: <span class="swiftclass">String</span> {</span>
+<span class="swiftcode">        <span class="swiftkeyword">return</span>(<span class="swiftstring">"Person </span></span><span class="codeswift">\<span class="swiftstring">(</span>name<span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring">"</span>)</span>
+<span class="swiftcode">    }</span>
+<span class="swiftcode">    </span>
+<span class="swiftcode">    <span class="swiftcomment">/**</span></span>
+<span class="swiftcode"><span class="swiftcomment">    Designated initialiser</span></span>
+<span class="swiftcode"><span class="swiftcomment">    </span></span>
+<span class="swiftcode"><span class="swiftcomment">    :parameter name: The name of the person</span></span>
+<span class="swiftcode"><span class="swiftcomment">    */</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">init</span>(name: <span class="swiftclass">String</span>) {</span>
+<span class="swiftcode">        <span class="swiftkeyword">self</span>.name = name</span>
+<span class="swiftcode">    }</span>
+<span class="swiftcode">}</span>
+</pre>
+</div>
+
+		<p>
+		The classes are very simple.  The <em><span class="swiftcode"><span class="swiftdefined">Apartment</span></span></em> object stores apartment number as <em><span class="swiftcode"><span class="swiftclass">Int</span></span></em> and can reference a potential tenant, which is a <em><span class="swiftcode"><span class="swiftdefined">Person</span></span></em> object.  The <em><span class="swiftcode"><span class="swiftdefined">Person</span></span></em> object stores a person's name as a <em><span class="swiftcode"><span class="swiftclass">String</span></span></em> and references a potential apartment, which is an <em><span class="swiftcode"><span class="swiftdefined">Apartment</span></span></em> reference.  If you've read carefully through the part on <a href="https://docs.swift.org/swift-book/LanguageGuide/AutomaticReferenceCounting.html#ID51">strong reference cycles</a> you'll notice that at the moment there is a potential for reference cycle.  Don't fix it just yet.
+		</p>
+
+		<p>
+	 	Here is some very simple code that creates a reference cycle between two objects of  <em><span class="swiftcode"><span class="swiftdefined">Apartment</span></span></em> and  <em><span class="swiftcode"><span class="swiftdefined">Person</span></span></em> type.  The code is in a do-while 
+		loop, so that the created objects go out of scope before the program finishes.  Memory occupied by the object going out of scope should be (in theory) freed by the ARC.  Copy this 
+		program into your <em>main.swift</em>.
+		</p>
+
+		<div class="codeblock">
+<div class="codeblocktitle"><a href="code/01/main.swift">main.swift</a></div>
+<pre class="linenumbers unselectable" style="float: left;">01:
+02:
+03:
+04:
+05:
+06:
+07:
+08:
+09:
+10:
+11:
+</pre><pre class="code">
+<span class="swiftcode"><span class="swiftkeyword">import</span> Foundation</span>
+<span class="swiftcode"></span>
+<span class="swiftcode"></span>
+<span class="swiftcode"><span class="swiftkeyword">repeat</span> {</span>
+<span class="swiftcode">  <span class="swiftkeyword">var</span> number73 = <span class="swiftdefined">Apartment</span>(number: <span class="swiftnumber">73</span>)</span>
+<span class="swiftcode">  <span class="swiftkeyword">var</span> john = <span class="swiftdefined">Person</span>(name: <span class="swiftstring">"John Smith"</span>)</span>
+<span class="swiftcode">    </span>
+<span class="swiftcode">  john.apartment = number73</span>
+<span class="swiftcode">  number73.tenant = john</span>
+<span class="swiftcode">    </span>
+<span class="swiftcode">} <span class="swiftkeyword">while</span>(<span class="swiftkeyword">false</span>)</span>
+</pre>
+</div>
+		
+		<p>
+		If you run this code, there will be no output.  It's hard to tell what's happening&mdash;are the objects destroyed, or not?
+		</p>
+		
+
+
+		<h3>Tracking an object's life span</h3>
+
+		<p>
+		To get some visibility, add some debug information to class initialisers and deinitialisers.  
+		</p>
+
+		<div class="codeblock">
+<div class="codeblocktitle"><a href="code/02/Apartment.swift">Apartment.swift</a></div>
+<pre class="linenumbers unselectable" style="float: left;"><span class="codeold">01:
+</span><span class="codeold">02:
+</span><span class="codeold">03:
+</span><span class="codeold">04:
+</span><span class="codeold">05:
+</span><span class="codeold">06:
+</span><span class="codeold">07:
+</span><span class="codeold">08:
+</span><span class="codeold">09:
+</span><span class="codeold">10:
+</span><span class="codeold">11:
+</span><span class="codeold">12:
+</span><span class="codeold">13:
+</span><span class="codeold">14:
+</span><span class="codeold">15:
+</span><span class="codeold">16:
+</span><span class="codeold">17:
+</span><span class="codeold">18:
+</span><span class="codeold">19:
+</span><span class="codeold">20:
+</span><span class="codeold">21:
+</span><span class="codeold">22:
+</span><span class="codeold">23:
+</span><span class="codeold">24:
+</span><span class="codeold">25:
+</span><span class="codeold">26:
+</span><span class="codeold">27:
+</span>28:
+29:
+<span class="codeold">30:
+</span><span class="codeold">31:
+</span>32:
+33:
+34:
+35:
+<span class="codeold">36:
+</span></pre><pre class="code">
+<span class="codeold"><span class="swiftcode"><span class="swiftkeyword">import</span> Foundation</span></span>
+<span class="codeold"><span class="swiftcode"></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">/**</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">Class representing an apartment  Inherits from</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">RetainTracker, so that retain count of Apartment objects</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">can be seen.</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">*/</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftkeyword">class</span> <span class="swiftdefined">Apartment</span> : <span class="swiftclass">CustomStringConvertible</span>  {</span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">// Apartment number</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">let</span> number: <span class="swiftclass">Int</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">// Apartment's tenant (optional)</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">var</span> tenant: <span class="swiftdefined">Person</span>?</span></span>
+<span class="codeold"><span class="swiftcode">    </span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">/**</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    String description</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    */</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">var</span> description: <span class="swiftclass">String</span> {</span></span>
+<span class="codeold"><span class="swiftcode">        <span class="swiftkeyword">return</span>(<span class="swiftstring">"Apartment </span></span><span class="codeswift">\<span class="swiftstring">(</span>number<span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring">"</span>)</span></span>
+<span class="codeold"><span class="swiftcode">    }</span></span>
+<span class="codeold"><span class="swiftcode">    </span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">/**</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    Designated initialiser</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    </span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    - parameter number: Apartment number</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    */</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">init</span>(number: <span class="swiftclass">Int</span>) {</span></span>
+<span class="codeold"><span class="swiftcode">        <span class="swiftkeyword">self</span>.number = number</span></span>
+<span class="swiftcode">        <span class="swiftcomment">// Print initialisation message</span></span>
+<span class="swiftcode">        <span class="swiftfunction">print</span>(<span class="swiftstring">"</span></span><span class="codeswift">\<span class="swiftstring">(</span><span class="swiftkeyword">self</span><span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring"> is being itialized"</span>)</span>
+<span class="codeold"><span class="swiftcode">    }</span></span>
+<span class="codeold"><span class="swiftcode">    </span></span>
+<span class="swiftcode">    <span class="swiftkeyword">deinit</span> {</span>
+<span class="swiftcode">        <span class="swiftcomment">// Print deinitialisation message</span></span>
+<span class="swiftcode">        <span class="swiftfunction">print</span>(<span class="swiftstring">"</span></span><span class="codeswift">\<span class="swiftstring">(</span><span class="swiftkeyword">self</span><span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring"> is being deinitialized"</span>)</span>
+<span class="swiftcode">    }</span>
+<span class="codeold"><span class="swiftcode">}</span></span>
+</pre>
+</div>
+
+		<div class="codeblock">
+<div class="codeblocktitle"><a href="code/02/Person.swift">Person.swift</a></div>
+<pre class="linenumbers unselectable" style="float: left;"><span class="codeold">01:
+</span><span class="codeold">02:
+</span><span class="codeold">03:
+</span><span class="codeold">04:
+</span><span class="codeold">05:
+</span><span class="codeold">06:
+</span><span class="codeold">07:
+</span><span class="codeold">08:
+</span><span class="codeold">09:
+</span><span class="codeold">10:
+</span><span class="codeold">11:
+</span><span class="codeold">12:
+</span><span class="codeold">13:
+</span><span class="codeold">14:
+</span><span class="codeold">15:
+</span><span class="codeold">16:
+</span><span class="codeold">17:
+</span><span class="codeold">18:
+</span><span class="codeold">19:
+</span><span class="codeold">20:
+</span><span class="codeold">21:
+</span><span class="codeold">22:
+</span><span class="codeold">23:
+</span><span class="codeold">24:
+</span><span class="codeold">25:
+</span><span class="codeold">26:
+</span><span class="codeold">27:
+</span>28:
+29:
+<span class="codeold">30:
+</span><span class="codeold">31:
+</span>32:
+33:
+34:
+35:
+<span class="codeold">36:
+</span></pre><pre class="code">
+<span class="codeold"><span class="swiftcode"><span class="swiftkeyword">import</span> Foundation</span></span>
+<span class="codeold"><span class="swiftcode"></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">/**</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">Class representing a person.  Inherits from</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">RetainTracker, so that retain count of Person objects</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">can be seen.</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">*/</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftkeyword">class</span> <span class="swiftdefined">Person</span> : <span class="swiftclass">CustomStringConvertible</span> {</span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">// Name of the person</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">let</span> name: <span class="swiftclass">String</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">// Optional apartment (where the person lives)</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">var</span> apartment: <span class="swiftdefined">Apartment</span>?</span></span>
+<span class="codeold"><span class="swiftcode">    </span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">/**</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    String description</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    */</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">var</span> description: <span class="swiftclass">String</span> {</span></span>
+<span class="codeold"><span class="swiftcode">        <span class="swiftkeyword">return</span>(<span class="swiftstring">"Person </span></span><span class="codeswift">\<span class="swiftstring">(</span>name<span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring">"</span>)</span></span>
+<span class="codeold"><span class="swiftcode">    }</span></span>
+<span class="codeold"><span class="swiftcode">    </span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftcomment">/**</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    Designated initialiser</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    </span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    - parameter name: The name of the person</span></span></span>
+<span class="codeold"><span class="swiftcode"><span class="swiftcomment">    */</span></span></span>
+<span class="codeold"><span class="swiftcode">    <span class="swiftkeyword">init</span>(name: <span class="swiftclass">String</span>) {</span></span>
+<span class="codeold"><span class="swiftcode">        <span class="swiftkeyword">self</span>.name = name</span></span>
+<span class="swiftcode">        <span class="swiftcomment">// Print initialisation message</span></span>
+<span class="swiftcode">        <span class="swiftfunction">print</span>(<span class="swiftstring">"</span></span><span class="codeswift">\<span class="swiftstring">(</span><span class="swiftkeyword">self</span><span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring"> is being initialized"</span>)</span>
+<span class="codeold"><span class="swiftcode">    }</span></span>
+<span class="codeold"><span class="swiftcode">    </span></span>
+<span class="swiftcode">    <span class="swiftkeyword">deinit</span> {</span>
+<span class="swiftcode">        <span class="swiftcomment">// Print deinitialisation message</span></span>
+<span class="swiftcode">        <span class="swiftfunction">print</span>(<span class="swiftstring">"</span></span><span class="codeswift">\<span class="swiftstring">(</span><span class="swiftkeyword">self</span><span class="swiftstring">)</span></span><span class="swiftcode"><span class="swiftstring"> is being deinitialized"</span>)</span>
+<span class="swiftcode">    }</span>
+<span class="codeold"><span class="swiftcode">}</span></span>
+</pre>
+</div>
+
+		<p>
+		Run the <em>main.swift</em> again.  This time you should see the output from initialisers like so:
+		</p> 
+
+<pre class="output">
+Apartment 73 is being initialised
+Person John Smith is being initialised
+</pre>
+	
+		<p>However, there is no output from either deinit.  The <em><span class="swiftcode"><span class="swiftkeyword">deinit</span></span></em> method (if implemented) is the last method that is always invoked on an object just before it gets destroyed.  If <em><span class="swiftcode"><span class="swiftkeyword">deinit</span></span></em> output didn't show in the output, it means that the object wasn't destroyed.  From the above output it's evident that the two objects in <em>main.swift</em> are not deinitilised when they go out of scope.  This is not unexpected&mdash;after all, we know that there is a retain cycle.
+		</p>	
+
+		<h3>The fix</h3>
+	
+		<p>
+		Go ahead and fix the code so that there is no retain cycle.  If you're not sure how to go about it, read carefully the section on <a href="https://docs.swift.org/swift-book/LanguageGuide/AutomaticReferenceCounting.html#ID52">resolving strong reference cycles</a> (and review the relevant lecture notes).
+		</p>
+		
+		<p>
+		Run <em>main.swift</em> again.  If your fix works, you should see a message printed from the deinitialisers of both objects, signifying their destruction when their references go out of scope within <em>main.swift</em>.
+		</p>
+	</div>	
+
+
+<h2>Leak fixing</h2>
+<div class="block">
+
+	<p>
+	The previous exercise was fairly easy.  In this one, you'll be fixing memory leaks in a body of code that is a bit more complex.  There's a playground <a href="code/gameEngine.playground">gameEngine.playground</a> in the code directory.  Open the code folder, and double click on the playground project&mdash;it should open in Xcode and display the project as in the screenshot below.
+	</p>
+
+	<img class="block" src="images/screen01.png" style="max-width:1956px;max-height:1264px" title="Game emulator playground project">
+
+	<p>
+	If you don't see the project navigator on the left, from the menu select <em>View->Navigators->Show Project Navigator</em>.  If you don't see the assistant editor windows on the right, from the menu select <em>View->Assistant Editor->Show Assistant Editor</em>.  The playground auto-compiles and runs its code after any changes are made.  It should also compile and run after you open it.  It may take a while first time around, because all the files under the Sources folder need to be compiled.  Afterwards, if you want to force a re-run, either make a simple change to the main code, or from menu select <em>Editor->Execute Playground</em>.
+	</p>
+	
+	<p>
+	This project implements a simple game scene using the classes in the files under the Source folder.  The scene should display an asteroid that strikes the rocket, at which point the rocket gets destroyed.  The scene runs for 5 seconds and then stops.  You can find more information about the structure of the game emulator library in the provided <a href="http://www.cs.otago.ac.nz/cosc346/resources/GameEngineClassHierarchy.pdf">class diagrams</a> and <a href="http://www.cs.otago.ac.nz/cosc346/resources/GameLoop.pdf">game loop flowchart</a>.  There are also comments in the code.
+	</p>
+	
+	<p>The part of the code that creates the scene and the objects visible in the scene is contained in the do-while loop shown below.  The loop is there, again, to create a scope block so that all the created game objects and the scene itself goes out of scope after the scene is run.  
+	</p>
+	
+	<div class="codeblock">
+<div class="codeblocktitle"><a href="code/Contents.swift">Contents.swift</a></div>
+<pre class="linenumbers unselectable" style="float: left;">001:
+002:
+003:
+004:
+005:
+006:
+007:
+008:
+009:
+010:
+011:
+012:
+013:
+014:
+015:
+016:
+017:
+018:
+019:
+020:
+021:
+022:
+023:
+024:
+025:
+</pre><pre class="code">
+<span class="swiftcode"><span class="swiftkeyword">repeat</span> {</span>
+<span class="swiftcode">    <span class="swiftcomment">// Create a new scene</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">var</span> scene: Scene = Scene(width: <span class="swiftnumber">600</span>, height: <span class="swiftnumber">600</span>)</span>
+<span class="swiftcode">    </span>
+<span class="swiftcode">    <span class="swiftcomment">// Create a static background sprite</span></span>
+<span class="swiftcode">    <span class="swiftcomment">// and add it to the scene - default position is (0,0)</span></span>
+<span class="swiftcode">    scene.addGameObject(Sprite(imageNamed: <span class="swiftstring">"sun.png"</span>, scale: <span class="swiftnumber">0</span>.<span class="swiftnumber">5</span>))</span>
+<span class="swiftcode"></span>
+<span class="swiftcode"></span>
+<span class="swiftcode">    <span class="swiftcomment">// Create player object and add it to the scene - default</span></span>
+<span class="swiftcode">    <span class="swiftcomment">// position is (0,0)</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">var</span> rocket = <span class="swiftdefined">Player</span>(imageNamed: <span class="swiftstring">"rocket.png"</span>, scale: <span class="swiftnumber">0</span>.<span class="swiftnumber">5</span>)</span>
+<span class="swiftcode">    rocket.collider = RectangleCollider(width: <span class="swiftnumber">120</span>, height: <span class="swiftnumber">60</span>)</span>
+<span class="swiftcode">    scene.addGameObject(rocket)</span>
+<span class="swiftcode"></span>
+<span class="swiftcode">    <span class="swiftcomment">// Create enemy object, palce it at position (-150,150)</span></span>
+<span class="swiftcode">    <span class="swiftcomment">// and add it to the scene</span></span>
+<span class="swiftcode">    <span class="swiftkeyword">var</span> asteroid = <span class="swiftdefined">Enemy</span>(imageNamed: <span class="swiftstring">"asteroid.png"</span>, scale: <span class="swiftnumber">0</span>.<span class="swiftnumber">2</span>)</span>
+<span class="swiftcode">    asteroid.position = CGPoint(x: -<span class="swiftnumber">150</span>, y: <span class="swiftnumber">150</span>)</span>
+<span class="swiftcode">    asteroid.collider = CircleCollider(radius: <span class="swiftnumber">20</span>)</span>
+<span class="swiftcode">    scene.addGameObject(asteroid)</span>
+<span class="swiftcode"></span>
+<span class="swiftcode">    <span class="swiftcomment">// Run the game engine</span></span>
+<span class="swiftcode">    runScene(scene, forTimeInSeconds: <span class="swiftnumber">5</span>, atFrameRate: <span class="swiftnumber">10</span>)</span>
+<span class="swiftcode">} <span class="swiftkeyword">while</span>(<span class="swiftkeyword">false</span>)</span>
+</pre>
+</div>
+
+	<p>This version of the game emulator has been fitted with debug messages in the init and denit method of game objects as well as the scene object itself.  When the scene runs, you should see the "Console output" with the init messages similar to the output below.  If you don't see this window, from the main menu select <em>View -> Debug Area -> Activate Console</em>.</p> 
+	
+<pre class="output">
+GameObject(0x00007fa773d85580) init.
+Scene init.
+Sprite "sun.png":GameObject(0x00007fa773c1c6a0) init.
+Player:Sprite "rocket.png":GameObject(0x00007fa773d5fc40) init.
+Rectangle:Collider:GameObject(0x00007fa773d61c70) init.
+Sprite "asteroid.png":GameObject(0x00007fa773e384b0) init.
+Circle:Collider:GameObject(0x00007fa773e3c4d0) init.
+</pre>
+
+	<p>
+	There are two problems with this library.  When the rocket hits the ship, the game loop logic will removes the rocket ship (and its children) from the scene, but there is no deinit message from the rocket when asteroid strikes it.  This means the objects remain in memory.  Second problem is the fact that the scene, and all objects in it, are not destroyed at the end, when they go out of scope.  Again, if they got destroyed properly, there would be deinit messages.  You need to fix these two problems.  It's got to do something with the relationship of game and scene objects.  Good luck.
+	</p> 
+	
+	<p>
+	Note: You will need to change a file/files in the library itself to fix the problem.  For whatever reason, in some versions of Xcode, the changes are not always immediately incorporated into the next run of the playground.  Hence, make sure to run the playground a few times after making changes to any files under Sources folder, if the results do not change in the way that you expect that they should.  This should assure that the Source changes are actually in the code that's being run.
+	</p>
+	
+	<p>
+	Hint: You don't need to write a lot of code or understand all of the details regarding how the game system works.  It's all about the relationships between objects.  Taking a look at the game object hierarchy in the scene is a good start.
+	</p>
+
+</div>
+
+	<div class="banner">
+		<a href="http://www.cs.otago.ac.nz/cosc346/labs.php">COSC346 - Object Oriented Programming and User Interfaces</a>
+	</div>
+	</body>
+</html>
