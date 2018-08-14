@@ -504,11 +504,11 @@ Circle:Collider:GameObject(0x00007fa773e3c4d0) init.
 </pre>
 
 	<p>
-	There are two problems with this library.  When the rocket hits the ship, the game loop logic will removes the rocket ship (and its children) from the scene, but there is no deinit message from the rocket when asteroid strikes it.  This means the objects remain in memory.  Second problem is the fact that the scene, and all objects in it, are not destroyed at the end, when they go out of scope.  Again, if they got destroyed properly, there would be deinit messages.  You need to fix these two problems.  It's got to do something with the relationship of game and scene objects.  Good luck.
+	There are two problems with this library.  When the rocket hits the asteroid, the game loop logic will removes the rocket ship (and its children) from the scene, but there is no deinit message from the rocket when the asteroid strikes it.  This means the objects remain in memory.  The second problem is the fact that the scene, and all objects in it, are not destroyed at the end, when they go out of scope.  Again, if they got destroyed properly, there would be deinit messages.  You need to fix these two problems.  It's got to do something with the relationship of game and scene objects.  Good luck.
 	</p> 
 	
 	<p>
-	Note: You will need to change a file/files in the library itself to fix the problem.  For whatever reason, in some versions of Xcode, the changes are not always immediately incorporated into the next run of the playground.  Hence, make sure to run the playground a few times after making changes to any files under Sources folder, if the results do not change in the way that you expect that they should.  This should assure that the Source changes are actually in the code that's being run.
+	Note: You will need to change a file/files in the library itself to fix the problem.  For whatever reason, in some versions of Xcode, the changes are not always immediately incorporated into the next run of the playground.  Hence, make sure to run the playground a few times after making changes to any files under Sources folder, if the results do not change in the way that you expect that they should.  This should insure that the Source changes are actually in the code that's being run.
 	</p>
 	
 	<p>
