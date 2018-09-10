@@ -18,10 +18,10 @@ with desired behaviour by classes inheriting from this one
 */
 open class GameObject {
     // Reference to the scene where objects is placed
-    var scene: Scene?
+    weak var scene: Scene?
 
     // Object's parent in scene's hierarchy
-    var parent: GameObject?
+    weak var parent: GameObject?
     // Object's children in scene's hierarchy
     var children: [GameObject] = []
     
